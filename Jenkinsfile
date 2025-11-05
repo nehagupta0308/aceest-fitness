@@ -11,14 +11,21 @@ pipeline {
       }
     }
 
-    stage('Run tests (inside Python container)') {
+    // === TESTS stage using docker agent ===
+    stage('Run tests (in python container)') {
+      // use the python image as the agent for this stage
+      agent {
+        docker {
+          image 'python:3.10-slim'
+          // reuse host network if needed: args '-v /var/run/docker.sock:/var/run/docker.sock'
+          // args '' 
+        }
+      }
       steps {
         sh '''
-          docker run --rm -v "$PWD":/src -w /src python:3.10-slim /bin/sh -c "
-            pip install --no-cache-dir -r requirements.txt &&
-            mkdir -p reports &&
-            pytest --junitxml=reports/junit-report.xml || true
-          "
+          pip install --no-cache-dir -r requirements.txt
+          mkdir -p reports
+          pytest --junitxml=reports/junit-report.xml || true
         '''
       }
       post {
@@ -46,9 +53,13 @@ pipeline {
         }
       }
     }
-  } // stages
+  }
 
   post {
-    always { echo "Finished build ${env.BUILD_NUMBER}" }
+    always {
+      echo "Pipeline finished. Build #${env.BUILD_NUMBER}"
+    }
+    success { echo "Build succeeded." }
+    failure { echo "Build failed." }
   }
 }
